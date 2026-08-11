@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Adaptive Physiological Telemetry — Avalanche Rescue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<style>
+  :root{
+    --crevasse:#0a1420;
+    --crevasse-2:#0d1a28;
+    --slate:#12202e;
+    --slate-2:#182c3d;
+    --glacier:#eef3f6;
+    --mist:#8ea3b3;
+    --mist-dim:#5c7284;
+    --rescue:#ff5a1f;
+    --rescue-dim:#c94517;
+    --signal:#4fe3d8;
+    --line:rgba(238,243,246,0.09);
+    --line-strong:rgba(238,243,246,0.16);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{background:var(--crevasse);scroll-behavior:smooth;}
+  body{
+    background:var(--crevasse);
+    color:var(--glacier);
+    font-family:'Inter',sans-serif;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--rescue);color:var(--crevasse);}
+
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .display{font-family:'Big Shoulders Display',sans-serif;}
+
+  .kicker{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.22em;
+    text-transform:uppercase;
+    color:var(--signal);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:20px;
+  }
+  .kicker::before{
+    content:'';
+    width:16px;height:1px;
+    background:var(--signal);
+    display:inline-block;
+  }
+
+  /* grain overlay */
+  .grain{
+    position:fixed;inset:0;
+    pointer-events:none;
+    opacity:0.035;
+    z-index:200;
+    mix-blend-mode:overlay;
+  }
+
+  /* progress bar */
+  .progress-bar{
+    position:fixed;top:0;left:0;
+    height:2px;width:100%;
+    background:var(--line);
+    z-index:100;
+  }
+  .progress-fill{
+    height:100%;width:0%;
+    background:linear-gradient(90deg,var(--signal),var(--rescue));
+    transform-origin:left;
+  }
+
+  /* nav */
+  nav{
+    position:fixed;top:0;left:0;right:0;
+    display:flex;justify-content:space-between;align-items:center;
+    padding:26px 5vw 0;
+    z-index:90;
+    pointer-events:none;
+  }
+  nav .mark{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.15em;
+    color:var(--mist);
+    line-height:1.6;
+  }
+  nav .mark b{color:var(--glacier);font-weight:600;}
+  nav .status{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.12em;
+    color:var(--mist-dim);
+    text-align:right;
+    line-height:1.6;
+  }
+  nav .status .dot{
+    width:6px;height:6px;border-radius:50%;
+    background:var(--signal);
+    display:inline-block;
+    margin-left:6px;
+    box-shadow:0 0 8px var(--signal);
+  }
+
+  /* boot overlay */
+  #boot{
+    position:fixed;inset:0;
+    background:var(--crevasse);
+    z-index:300;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    gap:18px;
+  }
+  #boot .boot-text{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    letter-spacing:0.2em;
+    color:var(--signal);
+    text-transform:uppercase;
+  }
+  #boot .boot-bar{
+    width:220px;height:2px;
+    background:var(--line-strong);
+    overflow:hidden;
+  }
+  #boot .boot-fill{
+    height:100%;width:0%;
+    background:var(--signal);
+  }
+
+  /* topo background */
+  .topo-wrap{
+    position:absolute;inset:0;
+    overflow:hidden;
+    pointer-events:none;
+  }
+  .topo-wrap svg{
+    position:absolute;
+    width:130%;height:130%;
+    left:-15%;top:-15%;
+  }
+  .topo-wrap path{
+    fill:none;
+    stroke:var(--line);
+    stroke-width:1;
+  }
+
+  section{
+    position:relative;
+    padding:160px 5vw;
+    max-width:1440px;
+    margin:0 auto;
+  }
+
+  /* HERO */
+  .hero{
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding-top:100px;
+    padding-bottom:60px;
+  }
+  .hero-grid{
+    display:grid;
+    grid-template-columns:1.1fr 0.9fr;
+    gap:60px;
+    align-items:center;
+  }
+  .hero h1{
+    font-family:'Big Shoulders Display',sans-serif;
+    font-weight:800;
+    font-size:clamp(46px,6.6vw,96px);
+    line-height:0.96;
+    text-transform:uppercase;
+    letter-spacing:-0.01em;
+  }
+  .hero h1 .accent{color:var(--rescue);}
+  .hero p.sub{
+    margin-top:26px;
+    max-width:520px;
+    color:var(--mist);
+    font-size:16.5px;
+    line-height:1.7;
+  }
+
+  .overline-row{display:flex;gap:14px;margin-top:44px;flex-wrap:wrap;}
+  .tag{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10.5px;
+    letter-spacing:0.08em;
+    color:var(--mist-dim);
+    border:1px solid var(--line-strong);
+    padding:7px 12px;
+    border-radius:2px;
+    text-transform:uppercase;
+  }
+
+  /* telemetry receiver panel */
+  .receiver{
+    background:linear-gradient(160deg,var(--slate),var(--crevasse-2));
+    border:1px solid var(--line-strong);
+    border-radius:6px;
+    padding:26px 26px 22px;
+    position:relative;
+    box-shadow:0 40px 80px -30px rgba(0,0,0,0.6);
+  }
+  .receiver::before{
+    content:'';
+    position:absolute;inset:0;
+    border-radius:6px;
+    padding:1px;
+    background:linear-gradient(135deg,rgba(79,227,216,0.25),transparent 40%);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;mask-composite:exclude;
+    pointer-events:none;
+  }
+  .receiver-head{
+    display:flex;justify-content:space-between;align-items:center;
+    padding-bottom:16px;
+    margin-bottom:18px;
+    border-bottom:1px solid var(--line);
+  }
+  .receiver-head .label{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10.5px;
+    letter-spacing:0.14em;
+    color:var(--mist);
+    text-transform:uppercase;
+  }
+  .receiver-head .lock{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10.5px;
+    letter-spacing:0.1em;
+    color:var(--signal);
+    display:flex;align-items:center;gap:7px;
+  }
+  .pulse-dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--signal);
+    box-shadow:0 0 10px var(--signal);
+  }
+  .vitals-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px 20px;
+  }
+  .vital{
+    padding:12px 0;
+  }
+  .vital .vlabel{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    letter-spacing:0.12em;
+    color:var(--mist-dim);
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  .vital .vval{
+    font-family:'JetBrains Mono',monospace;
+    font-size:27px;
+    font-weight:600;
+    color:var(--glacier);
+  }
+  .vital .vval span{
+    font-size:13px;
+    color:var(--mist);
+    font-weight:400;
+    margin-left:3px;
+  }
+  .vital.confidence .vval{color:var(--signal);font-size:18px;letter-spacing:0.04em;}
+  .vital.motion .vval{font-size:18px;letter-spacing:0.02em;}
+
+  .scroll-cue{
+    position:absolute;
+    bottom:38px;left:5vw;
+    display:flex;align-items:center;gap:10px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:10.5px;letter-spacing:0.16em;
+    color:var(--mist-dim);
+  }
+  .scroll-cue .line{width:1px;height:34px;background:var(--line-strong);position:relative;overflow:hidden;}
+  .scroll-cue .line::after{
+    content:'';position:absolute;top:0;left:0;width:100%;height:10px;
+    background:var(--signal);
+    animation:scrolldrip 1.8s ease-in-out infinite;
+  }
+  @keyframes scrolldrip{
+    0%{transform:translateY(-10px);opacity:0;}
+    30%{opacity:1;}
+    100%{transform:translateY(34px);opacity:0;}
+  }
+
+  /* section heads */
+  .section-head{max-width:680px;margin-bottom:64px;}
+  .section-head h2{
+    font-family:'Big Shoulders Display',sans-serif;
+    font-weight:700;
+    font-size:clamp(32px,4vw,52px);
+    line-height:1.05;
+    text-transform:uppercase;
+  }
+  .section-head p{
+    margin-top:18px;
+    color:var(--mist);
+    font-size:16px;
+    line-height:1.75;
+    max-width:600px;
+  }
+
+  /* PROBLEM */
+  .problem-body{
+    display:grid;
+    grid-template-columns:0.85fr 1.15fr;
+    gap:70px;
+    align-items:center;
+  }
+  .problem-copy p{color:var(--mist);font-size:15.5px;line-height:1.85;margin-bottom:16px;}
+  .problem-copy p strong{color:var(--glacier);font-weight:600;}
+
+  .chart-box{
+    background:var(--slate);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:30px 30px 20px;
+  }
+  .chart-caption{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;letter-spacing:0.1em;
+    color:var(--mist-dim);
+    text-transform:uppercase;
+    margin-top:14px;
+    text-align:center;
+  }
+
+  /* HOW IT WORKS */
+  .flow-box{
+    background:var(--slate);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:40px 20px 30px;
+    margin-top:20px;
+  }
+  .flow-labels{
+    display:flex;justify-content:space-between;
+    padding:0 30px;
+    margin-top:6px;
+  }
+  .flow-labels span{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;letter-spacing:0.1em;
+    color:var(--mist);
+    text-transform:uppercase;
+    text-align:center;
+    max-width:120px;
+  }
+
+  .dualwake{
+    margin-top:70px;
+    display:grid;
+    grid-template-columns:0.9fr 1.1fr;
+    gap:60px;
+    align-items:center;
+  }
+  .wake-states{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .wake-state{
+    border:1px solid var(--line-strong);
+    border-radius:6px;
+    padding:20px 22px;
+    transition:border-color .4s, background .4s;
+  }
+  .wake-state.active{
+    border-color:var(--signal);
+    background:linear-gradient(120deg,rgba(79,227,216,0.07),transparent);
+  }
+  .wake-state .wtitle{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;letter-spacing:0.08em;
+    color:var(--glacier);
+    text-transform:uppercase;
+    display:flex;align-items:center;gap:10px;
+    margin-bottom:8px;
+  }
+  .wake-state .wdot{width:7px;height:7px;border-radius:50%;background:var(--mist-dim);}
+  .wake-state.active .wdot{background:var(--signal);box-shadow:0 0 8px var(--signal);}
+  .wake-state p{color:var(--mist);font-size:13.5px;line-height:1.6;}
+
+  /* PHILOSOPHY */
+  .philosophy-quote{
+    font-family:'Big Shoulders Display',sans-serif;
+    font-weight:700;
+    font-size:clamp(30px,4.4vw,56px);
+    line-height:1.08;
+    text-transform:uppercase;
+    max-width:760px;
+    margin-bottom:60px;
+  }
+  .philosophy-quote .accent{color:var(--rescue);}
+
+  .split{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:2px;
+    background:var(--line);
+    border:1px solid var(--line);
+    border-radius:6px;
+    overflow:hidden;
+  }
+  .split-col{
+    background:var(--crevasse-2);
+    padding:32px 30px;
+  }
+  .split-col h3{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;letter-spacing:0.14em;
+    text-transform:uppercase;
+    margin-bottom:22px;
+  }
+  .split-col.shown h3{color:var(--signal);}
+  .split-col.withheld h3{color:var(--mist-dim);}
+  .split-item{
+    display:flex;align-items:center;gap:12px;
+    padding:11px 0;
+    border-top:1px solid var(--line);
+    font-size:14.5px;
+  }
+  .split-item:first-of-type{border-top:none;}
+  .split-col.shown .split-item{color:var(--glacier);}
+  .split-col.withheld .split-item{color:var(--mist-dim);text-decoration:line-through;text-decoration-color:var(--rescue-dim);}
+  .check{color:var(--signal);font-family:'JetBrains Mono',monospace;}
+  .cross{color:var(--rescue-dim);font-family:'JetBrains Mono',monospace;}
+
+  /* SPECS */
+  .spec-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:16px;
+  }
+  .spec-card{
+    border:1px solid var(--line-strong);
+    border-radius:6px;
+    padding:26px 22px;
+    background:var(--slate);
+    transition:transform .35s ease, border-color .35s ease, background .35s ease;
+  }
+  .spec-card:hover{
+    transform:translateY(-4px);
+    border-color:var(--signal);
+    background:var(--slate-2);
+  }
+  .spec-card .snum{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;color:var(--mist-dim);
+    letter-spacing:0.1em;
+    margin-bottom:16px;
+  }
+  .spec-card h4{
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:16px;
+    margin-bottom:8px;
+  }
+  .spec-card p{color:var(--mist);font-size:13px;line-height:1.6;}
+
+  /* FOOTER */
+  footer{
+    padding:100px 5vw 60px;
+    border-top:1px solid var(--line);
+    text-align:center;
+  }
+  footer p.line{
+    font-family:'Big Shoulders Display',sans-serif;
+    font-weight:700;
+    font-size:clamp(22px,3vw,34px);
+    text-transform:uppercase;
+    max-width:700px;
+    margin:0 auto 20px;
+    line-height:1.15;
+  }
+  footer .foot-meta{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.1em;
+    color:var(--mist-dim);
+    text-transform:uppercase;
+  }
+
+  .reveal{opacity:0;transform:translateY(28px);}
+
+  @media (max-width:860px){
+    .hero-grid{grid-template-columns:1fr;gap:50px;}
+    .problem-body{grid-template-columns:1fr;gap:40px;}
+    .dualwake{grid-template-columns:1fr;gap:40px;}
+    .split{grid-template-columns:1fr;}
+    .spec-grid{grid-template-columns:1fr 1fr;}
+    section{padding:110px 6vw;}
+    nav{padding:20px 6vw 0;}
+    nav .status{display:none;}
+  }
+  @media (max-width:520px){
+    .spec-grid{grid-template-columns:1fr;}
+    .vitals-grid{grid-template-columns:1fr 1fr;}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:0.01ms !important;animation-iteration-count:1 !important;transition-duration:0.01ms !important;}
+  }
+</style>
+</head>
+<body>
+
+<svg class="grain" width="100%" height="100%">
+  <filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/></filter>
+  <rect width="100%" height="100%" filter="url(#noiseFilter)"/>
+</svg>
+
+<div id="boot">
+  <div class="boot-text mono">Acquiring signal<span id="bootDots">...</span></div>
+  <div class="boot-bar"><div class="boot-fill" id="bootFill"></div></div>
+</div>
+
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+<nav>
+  <div class="mark">AVALANCHE TELEMETRY<br><b>Adaptive Physiological System</b></div>
+  <div class="status">STUDENT ENGINEERING PROJECT<br>STATUS <span class="dot"></span> CONCEPT / PROTOTYPE</div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="topo-wrap" id="topoHero">
+    <svg viewBox="0 0 1440 900" preserveAspectRatio="none">
+      <path d="M-50,120 C 150,60 350,180 550,120 C 750,60 950,180 1150,120 C 1300,90 1400,140 1490,120" />
+      <path d="M-50,220 C 150,160 350,280 550,220 C 750,160 950,280 1150,220 C 1300,190 1400,240 1490,220" />
+      <path d="M-50,330 C 150,270 350,390 550,330 C 750,270 950,390 1150,330 C 1300,300 1400,350 1490,330" />
+      <path d="M-50,460 C 150,400 350,520 550,460 C 750,400 950,520 1150,460 C 1300,430 1400,480 1490,460" />
+      <path d="M-50,600 C 150,540 350,660 550,600 C 750,540 950,660 1150,600 C 1300,570 1400,620 1490,600" />
+      <path d="M-50,740 C 150,680 350,800 550,740 C 750,680 950,800 1150,740 C 1300,710 1400,760 1490,740" />
+    </svg>
+  </div>
+
+  <div class="hero-grid">
+    <div>
+      <div class="kicker">Wearable Rescue Telemetry</div>
+      <h1>Every second<br>under snow<br>has a <span class="accent">pulse.</span></h1>
+      <p class="sub">A LoRa telemetry layer that rides alongside standard 457&nbsp;kHz beacons — surfacing confidence-flagged vitals to rescuers, without ever deciding who gets found first.</p>
+      <div class="overline-row">
+        <div class="tag">ESP32</div>
+        <div class="tag">LoRa Secondary Channel</div>
+        <div class="tag">Dual-Wake Power</div>
+        <div class="tag">Inform, Never Decide</div>
+      </div>
+    </div>
+
+    <div class="receiver" id="receiverPanel">
+      <div class="receiver-head">
+        <div class="label mono">Rescuer Receiver — Unit 03</div>
+        <div class="lock"><span class="pulse-dot" id="pulseDot"></span>LOCKED</div>
+      </div>
+      <div class="vitals-grid">
+        <div class="vital"><div class="vlabel">Heart Rate</div><div class="vval"><span id="vHr">118</span><span>bpm</span></div></div>
+        <div class="vital"><div class="vlabel">SpO₂</div><div class="vval"><span id="vSpo2">91</span><span>%</span></div></div>
+        <div class="vital"><div class="vlabel">Peripheral Temp</div><div class="vval"><span id="vTemp">31.4</span><span>°C</span></div></div>
+        <div class="vital motion"><div class="vlabel">Motion</div><div class="vval" id="vMotion">MINIMAL</div></div>
+        <div class="vital confidence" style="grid-column:span 2;"><div class="vlabel">Signal Confidence</div><div class="vval" id="vConf">HIGH — STABLE LINK</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scroll-cue"><div class="line"></div>SCROLL</div>
+</section>
+
+<!-- PROBLEM -->
+<section id="problem">
+  <div class="section-head reveal">
+    <div class="kicker">Why Beacons Aren't Enough</div>
+    <h2>A beacon finds a location.<br>It doesn't find who's critical.</h2>
+  </div>
+
+  <div class="problem-body">
+    <div class="problem-copy reveal">
+      <p>Standard 457&nbsp;kHz transceivers do one job well: they get a rescuer standing on top of a buried victim. <strong>They say nothing about condition.</strong></p>
+      <p>Most burials involve more than one victim, found in sequence, not at once. Right now, triage order is set by whoever gets dug out first — not by who's actually running out of time.</p>
+      <p>This system doesn't replace the beacon. It rides alongside it, closing that gap with live physiological signal.</p>
+    </div>
+
+    <div class="chart-box reveal">
+      <svg viewBox="0 0 480 220" width="100%" style="overflow:visible;">
+        <line x1="30" y1="10" x2="30" y2="180" stroke="var(--line-strong)" stroke-width="1"/>
+        <line x1="30" y1="180" x2="460" y2="180" stroke="var(--line-strong)" stroke-width="1"/>
+        <path id="uncertaintyPath" d="M30,170 C 120,165 180,150 230,120 C 300,80 360,45 450,20"
+          fill="none" stroke="var(--rescue)" stroke-width="2.5" stroke-linecap="round"/>
+        <text x="30" y="200" fill="var(--mist-dim)" font-family="JetBrains Mono" font-size="10" letter-spacing="0.05em">FIRST CONTACT</text>
+        <text x="370" y="200" fill="var(--mist-dim)" font-family="JetBrains Mono" font-size="10" letter-spacing="0.05em">TRIAGE DELAYED</text>
+        <text x="-90" y="20" fill="var(--mist-dim)" font-family="JetBrains Mono" font-size="10" letter-spacing="0.05em" transform="rotate(-90)">CONDITION UNKNOWN</text>
+      </svg>
+      <div class="chart-caption">Illustrative — outcome uncertainty rises the longer triage runs blind</div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="section-head reveal">
+    <div class="kicker">System Architecture</div>
+    <h2>Two channels.<br>One wearable.</h2>
+    <p>The 457&nbsp;kHz beacon stays exactly as it is — untouched, still the primary locator. A secondary LoRa channel carries live vitals from the wearable straight to the rescuer's receiver.</p>
+  </div>
+
+  <div class="flow-box reveal">
+    <svg viewBox="0 0 900 160" width="100%" style="overflow:visible;">
+      <path id="flowPath" d="M80,80 C 220,20 340,150 460,80 C 580,10 700,150 820,80"
+        fill="none" stroke="var(--line-strong)" stroke-width="2"/>
+      <path id="flowPathDraw" d="M80,80 C 220,20 340,150 460,80 C 580,10 700,150 820,80"
+        fill="none" stroke="var(--signal)" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="80" cy="80" r="7" fill="var(--crevasse)" stroke="var(--glacier)" stroke-width="2"/>
+      <circle cx="460" cy="80" r="7" fill="var(--crevasse)" stroke="var(--glacier)" stroke-width="2"/>
+      <circle cx="820" cy="80" r="7" fill="var(--crevasse)" stroke="var(--glacier)" stroke-width="2"/>
+      <circle id="flowDot" cx="80" cy="80" r="6" fill="var(--rescue)"/>
+    </svg>
+    <div class="flow-labels mono">
+      <span>Wearable<br>samples vitals</span>
+      <span>LoRa relay<br>confidence-flagged</span>
+      <span>Rescuer receiver<br>raw signal, no ranking</span>
+    </div>
+  </div>
+
+  <div class="dualwake">
+    <div class="reveal">
+      <div class="kicker">Power Architecture</div>
+      <h2 style="font-family:'Big Shoulders Display';font-weight:700;font-size:clamp(26px,3.2vw,38px);text-transform:uppercase;line-height:1.1;">Dual-wake keeps<br>the battery alive.</h2>
+      <p style="color:var(--mist);margin-top:16px;font-size:15px;line-height:1.75;">The wearable only spends power when it needs to — waking instantly on a fall, or checking in on a fixed schedule otherwise.</p>
+    </div>
+    <div class="wake-states reveal">
+      <div class="wake-state" id="wakeA">
+        <div class="wtitle"><span class="wdot"></span>IMU Fall-Event Trigger</div>
+        <p>An abrupt orientation or acceleration change wakes the unit immediately and starts continuous transmission.</p>
+      </div>
+      <div class="wake-state" id="wakeB">
+        <div class="wtitle"><span class="wdot"></span>5-Minute Periodic Check</div>
+        <p>Absent a fall event, the unit wakes on a timer, samples vitals, transmits, and sleeps again to conserve power.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PHILOSOPHY -->
+<section id="philosophy">
+  <div class="kicker reveal">Design Principle</div>
+  <div class="philosophy-quote reveal">Inform. <span class="accent">Never decide.</span></div>
+
+  <div class="split reveal">
+    <div class="split-col shown">
+      <h3>What rescuers see</h3>
+      <div class="split-item"><span class="check">✓</span>Heart rate &amp; SpO₂</div>
+      <div class="split-item"><span class="check">✓</span>Peripheral temperature</div>
+      <div class="split-item"><span class="check">✓</span>Motion state</div>
+      <div class="split-item"><span class="check">✓</span>Signal confidence flag</div>
+    </div>
+    <div class="split-col withheld">
+      <h3>What the system withholds</h3>
+      <div class="split-item"><span class="cross">✕</span>Victim ranking</div>
+      <div class="split-item"><span class="cross">✕</span>Priority score</div>
+      <div class="split-item"><span class="cross">✕</span>Automated triage decisions</div>
+      <div class="split-item"><span class="cross">✕</span>Any call on who's dug out first</div>
+    </div>
+  </div>
+</section>
+
+<!-- SPECS -->
+<section id="specs">
+  <div class="section-head reveal">
+    <div class="kicker">Built With</div>
+    <h2>What's inside the wearable.</h2>
+  </div>
+  <div class="spec-grid">
+    <div class="spec-card reveal"><div class="snum mono">01</div><h4>ESP32</h4><p>Core controller running sensor sampling, wake logic, and LoRa transmission.</p></div>
+    <div class="spec-card reveal"><div class="snum mono">02</div><h4>LoRa Module</h4><p>Secondary long-range channel, independent of the standard beacon frequency.</p></div>
+    <div class="spec-card reveal"><div class="snum mono">03</div><h4>IMU</h4><p>Drives the fall-event wake trigger and feeds the motion reading.</p></div>
+    <div class="spec-card reveal"><div class="snum mono">04</div><h4>HR / SpO₂ Sensor</h4><p>Continuous pulse-oximetry sampling at the wrist.</p></div>
+    <div class="spec-card reveal"><div class="snum mono">05</div><h4>Peripheral Temp Sensor</h4><p>Tracks extremity temperature as a cold-exposure indicator.</p></div>
+    <div class="spec-card reveal"><div class="snum mono">06</div><h4>457 kHz Beacon</h4><p>Left fully unmodified — still the primary locator, unchanged.</p></div>
+  </div>
+</section>
+
+<footer>
+  <p class="line reveal">Built to keep rescuers informed —<br>and decisions human.</p>
+  <div class="foot-meta reveal">Adaptive Physiological Telemetry System · Concept / Prototype · 2026</div>
+</footer>
+
+<script>
+gsap.registerPlugin(ScrollTrigger);
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- BOOT SEQUENCE ---------- */
+function runBoot(){
+  const boot = document.getElementById('boot');
+  if(reduced){ boot.style.display='none'; playHeroIn(); return; }
+  let dots = 0;
+  const dotEl = document.getElementById('bootDots');
+  const dotTimer = setInterval(()=>{ dots=(dots+1)%4; dotEl.textContent='.'.repeat(dots); }, 220);
+  gsap.to('#bootFill', {width:'100%', duration:1.05, ease:'power2.inOut', onComplete:()=>{
+    clearInterval(dotTimer);
+    gsap.to(boot, {opacity:0, duration:0.5, onComplete:()=>{ boot.style.display='none'; }});
+    playHeroIn();
+  }});
+}
+
+function playHeroIn(){
+  const tl = gsap.timeline({defaults:{ease:'power3.out'}});
+  tl.from('.hero .kicker', {opacity:0, y:16, duration:0.6})
+    .from('.hero h1', {opacity:0, y:30, duration:0.8}, '-=0.35')
+    .from('.hero .sub', {opacity:0, y:20, duration:0.7}, '-=0.5')
+    .from('.overline-row .tag', {opacity:0, y:12, stagger:0.08, duration:0.5}, '-=0.4')
+    .from('#receiverPanel', {opacity:0, y:24, scale:0.98, duration:0.8}, '-=0.6')
+    .from('.scroll-cue', {opacity:0, duration:0.6}, '-=0.3');
+}
+runBoot();
+
+/* ---------- topo drift ---------- */
+if(!reduced){
+  gsap.to('#topoHero', {y:60, ease:'none', scrollTrigger:{trigger:'.hero', start:'top top', end:'bottom top', scrub:true}});
+}
+
+/* ---------- progress bar ---------- */
+ScrollTrigger.create({
+  start:0, end:'max', onUpdate:(self)=>{
+    document.getElementById('progressFill').style.width = (self.progress*100)+'%';
+  }
+});
+
+/* ---------- generic reveals ---------- */
+document.querySelectorAll('.reveal').forEach((el)=>{
+  gsap.to(el, {
+    opacity:1, y:0, duration:0.9, ease:'power3.out',
+    scrollTrigger:{ trigger:el, start:'top 85%', toggleActions:'play none none none' }
+  });
+});
+
+/* ---------- live telemetry jitter ---------- */
+function jitter(base, range, decimals=0){
+  const v = base + (Math.random()*2-1)*range;
+  return decimals>0 ? v.toFixed(decimals) : Math.round(v);
+}
+const motionStates = ['MINIMAL','STILL','SLIGHT SHIFT'];
+const confStates = [
+  {t:'HIGH — STABLE LINK', c:'var(--signal)'},
+  {t:'HIGH — STABLE LINK', c:'var(--signal)'},
+  {t:'MODERATE — WEAK LINK', c:'var(--rescue)'}
+];
+function tickVitals(){
+  document.getElementById('vHr').textContent = jitter(118,4);
+  document.getElementById('vSpo2').textContent = jitter(91,1.5);
+  document.getElementById('vTemp').textContent = jitter(31.4,0.6,1);
+  document.getElementById('vMotion').textContent = motionStates[Math.floor(Math.random()*motionStates.length)];
+  const conf = confStates[Math.floor(Math.random()*confStates.length)];
+  const confEl = document.getElementById('vConf');
+  confEl.textContent = conf.t;
+  confEl.style.color = conf.c;
+}
+if(!reduced){ setInterval(tickVitals, 2400); }
+
+/* ---------- pulse dot heartbeat ---------- */
+if(!reduced){
+  gsap.to('#pulseDot', {scale:1.6, opacity:0.4, duration:0.7, repeat:-1, yoyo:true, ease:'sine.inOut'});
+}
+
+/* ---------- uncertainty curve draw ---------- */
+(function(){
+  const path = document.getElementById('uncertaintyPath');
+  const len = path.getTotalLength();
+  path.style.strokeDasharray = len;
+  path.style.strokeDashoffset = len;
+  gsap.to(path, {
+    strokeDashoffset:0, duration:1.4, ease:'power2.out',
+    scrollTrigger:{ trigger:'#problem', start:'top 60%', toggleActions:'play none none none' }
+  });
+})();
+
+/* ---------- flow diagram scrub ---------- */
+(function(){
+  const drawPath = document.getElementById('flowPathDraw');
+  const refPath = document.getElementById('flowPath');
+  const dot = document.getElementById('flowDot');
+  const len = drawPath.getTotalLength();
+  drawPath.style.strokeDasharray = len;
+  drawPath.style.strokeDashoffset = len;
+
+  ScrollTrigger.create({
+    trigger:'#how',
+    start:'top 70%',
+    end:'bottom 40%',
+    scrub:0.6,
+    onUpdate:(self)=>{
+      const p = self.progress;
+      drawPath.style.strokeDashoffset = len * (1-p);
+      const pt = refPath.getPointAtLength(len*p);
+      dot.setAttribute('cx', pt.x);
+      dot.setAttribute('cy', pt.y);
+    }
+  });
+})();
+
+/* ---------- dual wake auto-cycle ---------- */
+(function(){
+  const a = document.getElementById('wakeA');
+  const b = document.getElementById('wakeB');
+  a.classList.add('active');
+  if(reduced) return;
+  let state = true;
+  setInterval(()=>{
+    state = !state;
+    a.classList.toggle('active', state);
+    b.classList.toggle('active', !state);
+  }, 3200);
+})();
+</script>
+
+</body>
+</html>
